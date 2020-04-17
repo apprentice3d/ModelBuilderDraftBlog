@@ -52,7 +52,7 @@ From the measuring tool we see that we should move the newly added mesh to the r
 
 At this point, there are three approaches of adjusting the position of newly added custom geometry:
 
-1. Set position before adding mesh to the model builder:
+1. #### Set position before adding mesh to the model builder:
 
 	```javascript
 	
@@ -73,7 +73,7 @@ At this point, there are three approaches of adjusting the position of newly add
 	and we still see that we should have moved up our mesh by 85 units, but let us do it using another approach.
 
 
-2. Update the mesh position and then update the mesh:
+2. #### Update the mesh position and then update the mesh:
 
 	This approach is ok in small doses, but if you will try to build an animation using this approach, this is wrong way to do it.
 	The idea is to to use ModelBuilder in-build method to replace the mesh and it works both, for changing mesh geometry, as well as changing mesh transforms:
@@ -119,7 +119,7 @@ At this point, there are three approaches of adjusting the position of newly add
 		
 	![](./img/03c.png)
 
-3. Set position after adding the mesh by transforming the related fragments:
+3. #### Set position after adding the mesh by transforming the related fragments:
 	
 	This approach will look more complicated, but it is very powerful and its complexity can be easily abstracted.
 	To explain better this, let us understand first what data the ModelBuilder instance holds when we create it and add a mesh to it:
@@ -179,7 +179,7 @@ A live illustration of the project at this stage can be found [here](https://sam
 
 ### Part II: Add middle shelve as custom geometry from geometry of original shelve
 
-Bring custom geometry is useful, but not always enough. Sometimes geometry is already available in the scene as another "native" component and a challenge is to extract that geometry and bring it again as a custom component for further "manipulations".
+Bring custom geometry is useful, but not always enough. In many cases, the needed geometry is already available in the scene as another "native" component and the challenge is to extract that geometry and bring it again as a custom component for further "manipulations".
 
 In our case, it would be nice to "clone" the original shelve component and put it above our side panel. This way, this is the first step for a customizable shelve, where a potential customer can set the needed number of corner shelves.
 
@@ -187,13 +187,83 @@ To achieve this, we would need to master the `renderProxy`:
 
 ![](./img/06.png)
 
-From above, we see that the workflow of getting the render proxy of a fragment is to get the id of needed component, then check what is/are the associated fragment ids (could be more than one), and then get the render proxy for that very fragment. 
+From above, we see that the workflow of getting the render proxy of a fragment is to:
 
-The `RenderProxy` by itself is actually a Mesh, but we are not interested in it but rather in geometry it stores:
+ - get the id of needed component, 
+ - get the associated fragment ids (could be more than one), 
+ - get the render proxy for that very fragment. 
+
+The `RenderProxy` by itself is actually a Mesh, and for now, we are interested only in geometry it stores:
 
 ![](./img/06b.png)
 
-a bit unusual geometry structure, but now our mission (should you choose to accept it) is to translate the data from this geometry format into THREE.BufferGeometry format, which we can then use ModelBuilder extension to add custom component.
+a bit unusual geometry structure, and now our mission (should you choose to accept it) is to translate the data from this geometry format into THREE.BufferGeometry format, which we can then use ModelBuilder extension to add custom component.
+
+We have everything we need in `vb`, which stores position, normal, uv and index, in attributes we can see the itemOffset and itemSize and vbstride shows us the "repeating chunk size".
+
+All what we need to do at this step is to extract this data (or at least vertex positions and the indices for face formation) and organize into way THREE.BufferGeometry structures it:
+
+![](./img/06c.png)
+
+This is a quite daunting task, mainly because the original data is interleaved into a single array and you have to know how to carve from it the needed info.
+
+Fortunately, there is a hidden shortcut created by the engineering team, kept in total secret, yet widely available to anyone, with code name `VertexEnumerator` and it can be found in the namespace with a name that should never draw nobody's attention: `Autodesk.Viewing.Private`
+
+So, to illustrate the power of this tool, we will use it to extract the minimal needed data from renderProxy geometry and push it into THREE.Geometry:
+
+```javascript
+
+let geom = new THREE.Geometry();
+let renderProxy = this.viewer.impl.getRenderProxy(this.viewer.model, fragmentId);
+
+let VE = Autodesk.Viewing.Private.VertexEnumerator;
+
+VE.enumMeshVertices(renderProxy.geometry, (v, i) => {
+            geom.vertices.push(new THREE.Vector3(v.x, v.y, v.z));
+        });
+
+VE.enumMeshIndices(renderProxy.geometry, (a, b, c) => {
+					geom.faces.push(new THREE.Face3(a, b, c))
+			});
+
+geom.computeFaceNormals();
+```
+
+
+ Having a THREE.Geometry we can easily create a BufferGeometry out of it, put into a mesh along with default material and add this "clone" to the scene:
+ 
+```javascript
+
+let mesh = new THREE.Mesh(
+        new THREE.BufferGeometry().fromGeometry(geom),
+        new THREE.MeshPhongMaterial({
+            color: new THREE.Color(1, 0, 0)
+        }));
+        
+modelBuilder.addMesh(mesh);
+
+```
+
+and we succeeded ... sort of ...:
+
+![](./img/06d.png)
+
+The "cloned" mesh is there (I've "ghosted" the original component), but the scale doesn't look right, which means that the final look is the result of taking the geometry and scaling it up, all this being done at renderProxy level, easy to confirm and identify the scale ratio by looking at it's world matrix:
+
+![](./img/06e.png)
+
+thus, the simplest way of fixing the scale, potential position and rotation, is to assign it to our newly created mesh and adjust position if needed:
+
+```javascript
+
+mesh.matrix = renderProxy.matrixWorld.clone();
+mesh.matrix.setPosition(new THREE.Vector3(0,140,0));
+
+```
+
+change the material as we did before and here we go:
+
+![](./img/07.png)
 
 
 ### Part III: Adding remaining geometry and fixing material UVs
