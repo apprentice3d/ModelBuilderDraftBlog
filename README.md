@@ -99,18 +99,18 @@ At this point, there are three approaches of adjusting the position of newly add
 	
 	```javascript
 	
-		...
-		mesh = new THREE.Mesh(geom, phongMaterial);
-		modelBuilder.addMesh(mesh);
-		
-		mesh.geometry = new THREE.BufferGeometry().fromGeometry(
-										new THREE.CylinderGeometry( 105, 105, 10, 128 ));
-     	mesh.geometry.computeBoundingBox();
-     	mesh.matrix.makeRotationFromEuler(new THREE.Euler(Math.PI/2,0,0));
-     	mesh.matrix.setPosition(new THREE.Vector3(0,0,-100));               
-		modelBuilder.updateMesh(mesh);
-		
-		...
+	...
+	mesh = new THREE.Mesh(geom, phongMaterial);
+	modelBuilder.addMesh(mesh);
+	
+	mesh.geometry = new THREE.BufferGeometry().fromGeometry(
+									new THREE.CylinderGeometry( 105, 105, 10, 128 ));
+ 	mesh.geometry.computeBoundingBox();
+ 	mesh.matrix.makeRotationFromEuler(new THREE.Euler(Math.PI/2,0,0));
+ 	mesh.matrix.setPosition(new THREE.Vector3(0,0,-100));               
+	modelBuilder.updateMesh(mesh);
+	
+	...
 	```
 	
 	
