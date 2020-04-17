@@ -113,11 +113,9 @@ At this point, there are three approaches of adjusting the position of newly add
 	...
 	```
 	
-	
-	
  and here you have a new geometry for the side panel:
 		
-	![](./img/03c.png)
+ ![](./img/03c.png)
 
 3. #### Set position after adding the mesh by transforming the related fragments:
 	
